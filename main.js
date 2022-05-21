@@ -1,106 +1,131 @@
-window.onload = (function() {
 
-    // スタートボタン
-    $('#tgCountupTimer #startButton').click(function() {
-        // 00:00:00:0からスタート
-        $('#tgCountupTimer .time').html('00:00:00:0');
-
-        timer = setInterval("countUp()", 100);
-
-        $(this).attr('disabled', 'disabled');
-        $('#tgCountupTimer #stopButton').removeAttr('disabled');
-    });
-
-
-    // ストップボタン
-    $('#tgCountupTimer #stopButton').click(function() {
-        // (一時)停止
-        clearInterval(timer);
-
-        $(this).attr('disabled', 'disabled');
-        $('#tgCountupTimer #restartButton').removeAttr('disabled');
-        $('#tgCountupTimer #clearButton').removeAttr('disabled');
-    });
-
-
-    // リスタートボタン
-    $('#tgCountupTimer #restartButton').click(function() {
-
-        timer = setInterval("countUp()", 100);
-
-        $(this).attr('disabled', 'disabled');
-        $('#tgCountupTimer #stopButton').removeAttr('disabled');
-        $('#tgCountupTimer #clearButton').attr('disabled','disabled');
-    });
-
-
-    // クリアボタン
-    $('#tgCountupTimer #clearButton').click(function() {
-
-        msec = 0;
-        sec  = 0;
-        min  = 0;
-        hour = 0;
-
-        // 00:00:00:0にリセット
-        $('#tgCountupTimer .time').html('00:00:00:0');
-        clearInterval(timer);
-
-        $(this).attr('disabled', 'disabled');
-        $('#tgCountupTimer #stopButton').attr('disabled','disabled');
-        $('#tgCountupTimer #restartButton').attr('disabled','disabled');
-        $('#tgCountupTimer #startButton').removeAttr('disabled');
-    });
-});
-
-msec = 0;
-sec  = 0;
-min  = 0;
-hour = 0;
-
-function countUp ()
-{
-    msec += 1;
-
-    if (msec > 9) {
-        msec = 0;
-        sec += 1;
-    }
-
-    if (sec > 59) {
-        sec = 0;
-        min += 1;
-    }
-
-    if (min > 59) {
-        min = 0;
-        hour += 1;
-    }
-
-    // ミリ秒
-    msecNumber = msec;
-
-    // 秒
-    if (sec < 10) {
-        secNumber = '0' + sec.toString();
-    } else {
-        secNumber = sec;
-    }
-
-    // 分
-    if (min < 10) {
-        minNumber = '0' + min.toString();
-    } else {
-        minNumber = min;
-    }
-
-    // 時
-    if (hour < 10) {
-        hourNumber = '0' + hour.toString();
-    } else {
-        hourNumber = hour;
-    }
-
-    // 出力
-    $('#tgCountupTimer .time').html(hourNumber + ':' + minNumber + ':' + secNumber + ':' + msecNumber);
+// ★STEP2
+// https://jp.vuejs.org/v2/examples/todomvc.html
+var STORAGE_KEY = 'todos-vuejs-demo'
+var todoStorage = {
+  fetch: function () {
+    var todos = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+    todos.forEach(function (todo, index) {
+      todo.id = index
+    })
+    todoStorage.uid = todos.length
+    return todos
+  },
+  save: function (todos) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos))
+  }
 }
+
+
+// ★STEP1
+new Vue({
+  el: '#app',
+
+  data: {
+    // ★STEP5 localStorage から 取得した ToDo のリスト
+    todos: [],
+    // ★STEP11 抽出しているToDoの状態
+    current: -1,
+    // ★STEP11＆STEP13 各状態のラベル
+    options: [
+      { value: -1, label: 'すべて' },
+      { value: 0, label: '作業中' },
+      { value: 1, label: '完了' }
+    ]
+  },
+
+  computed: {
+
+    // ★STEP12
+    computedTodos: function () {
+      return this.todos.filter(function (el) {
+        return this.current < 0 ? true : this.current === el.state
+      }, this)
+    },
+
+    // ★STEP13 作業中・完了のラベルを表示する
+    labels() {
+      return this.options.reduce(function (a, b) {
+        return Object.assign(a, { [b.value]: b.label })
+      }, {})
+      // キーから見つけやすいように、次のように加工したデータを作成
+      // {0: '作業中', 1: '完了', -1: 'すべて'}
+    }
+  },
+
+  // ★STEP8
+  watch: {
+    // オプションを使う場合はオブジェクト形式にする
+    todos: {
+      // 引数はウォッチしているプロパティの変更後の値
+      handler: function (todos) {
+        todoStorage.save(todos)
+      },
+      // deep オプションでネストしているデータも監視できる
+      deep: true
+    }
+  },
+
+  // ★STEP9
+  created() {
+    // インスタンス作成時に自動的に fetch() する
+    this.todos = todoStorage.fetch()
+  },
+
+  methods: {
+
+    // ★STEP7 ToDo 追加の処理
+    doAdd: function(event, value) {
+      // ref で名前を付けておいた要素を参照
+      var comment = this.$refs.comment
+      // 入力がなければ何もしないで return
+      if (!comment.value.length) {
+        return
+      }
+      // { 新しいID, コメント, 作業状態 }
+      // というオブジェクトを現在の todos リストへ push
+      // 作業状態「state」はデフォルト「作業中=0」で作成
+      this.todos.push({
+        id: todoStorage.uid++,
+        comment: comment.value,
+        state: 0
+      })
+      // フォーム要素を空にする
+      comment.value = ''
+    },
+
+    // ★STEP10 状態変更の処理
+    doChangeState: function (item) {
+      item.state = !item.state ? 1 : 0
+    },
+
+    //  編集の処理、実装予定
+        editToDo: function (item) {
+            var index = this.todos.indexOf(item);
+            var newText = window.prompt('以下内容で更新します。',item.comment);
+            if (newText === '') {
+                alert('入力欄が空欄です。');
+            } else if (newText !== null) {
+            　　var index = this.todos.indexOf(item)
+				this.edit(index, newText);
+            }
+        },
+
+        edit(id, comment) {
+            var editIndex = '';
+            this.todos.some(function (value, index) {
+                if (value.id === id) {
+                    editIndex = index;
+                }
+            });
+            this.todos[editIndex].comment = comment;
+        },
+        
+    // ★STEP10 削除の処理
+    doRemove: function (item) {
+      var index = this.todos.indexOf(item)
+      this.todos.splice(index, 1)
+    }
+
+  }
+})
